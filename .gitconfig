@@ -1,0 +1,54 @@
+[github]
+	upload-script-token = 0
+	user = j000
+[user]
+	name = j000
+	email = jarymut+github@gmail.com
+	signingkey = FC98A9D7
+[push]
+	default = matching
+	followTags = true
+[gui]
+	fontui = -family Biko -size -12 -weight normal -slant roman -underline 0 -overstrike 0
+	fontdiff = -family \"Envy Code R\" -size -12 -weight normal -slant roman -underline 0 -overstrike 0
+	warndetachedcommit = true
+	spellingdictionary = en_GB
+	copyblamethreshold = 20
+	blamehistoryctx = 14
+[cola]
+	fontdiff = Envy Code R,9,-1,5,50,0,0,0,0,0
+	tabwidth = 4
+[commit]
+	gpgsign = false
+[color]
+	ui = 1
+[alias]
+	lg = log --color --graph --date-order --pretty=format:'%C(red)%h%Creset - %C(green)%cr %C(bold blue)<%an>% G?%C(yellow)% D%Creset%n%s%+b'
+	tags = tag -l
+	diffc = "diff --cached "
+	slab = blame -M40% -C10 -w
+	assume   = update-index --assume-unchanged
+	unassume = update-index --no-assume-unchanged
+	assumed  = "!git ls-files -v | grep ^h | cut -c 3-"
+	snapshot = !git stash save \"snapshot: $(date)\" && git stash apply \"stash@{0}\"
+	subupdate = submodule foreach -q --recursive 'git checkout $(git config -f $toplevel/.gitmodules submodule.$name.branch || echo master)'
+[pull]
+	rebase = false
+[diff]
+	algorithm = patience
+[core]
+	editor = nano -L
+	whitespace = trailing-space,space-before-tab,blank-at-eol,blank-at-eof
+[ghi]
+	token = 0
+[rebase]
+	autostash = true
+[stash]
+	showPatch = true
+[filter "tabspace"]
+	smudge = unexpand --tabs=4 --first-only
+	clean = expand --tabs=4 --initial
+[filter "tokens"]
+	clean = "sed -e '/token/s#[[:alnum:]]\\{40\\}#0#'"
+[color "diff"]
+	whitespace = yellow reverse
