@@ -1,0 +1,4 @@
+[submodule ".config/zsh/vcs"]
+	path = .config/zsh/vcs
+	url = git@github.com:j000/zsh-vcs-prompt.git
+	branch = myfixes

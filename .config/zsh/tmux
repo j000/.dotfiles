@@ -1,0 +1,85 @@
+function rsc() {
+  CLIENTID=$1.`date +%S`
+  tmux new-session -d -t $1 -s $CLIENTID \; set-option destroy-unattached \; attach-session -t $CLIENTID
+}
+
+function mksc() {
+  tmux new-session -d -s $1
+  rsc $1
+}
+
+#######################################
+
+# TMUX_SUPPORTS_MINUS_F=$(tmux list-sessions -F '#{session_name}' > /dev/null 2>&1 && echo 0 || echo 1)
+# ...but that hangs on Linux due to epoll problems -- see
+# https://sourceforge.net/tracker/?func=detail&atid=973262&aid=3489496&group_id=200378
+local TMUX_SUPPORTS_MINUS_F=0  # 1 to disable -F support
+
+function tmux-list-sessions() {
+    if [[ "$TMUX_SUPPORTS_MINUS_F" == 0 ]] ; then
+        tmux list-sessions -F '#{session_name}' 2>/dev/null
+    else
+        tmux list-sessions 2>/dev/null | cut -d: -f 1
+    fi
+}
+
+function tmux-list-old-sessions() {
+    if [[ "$TMUX_SUPPORTS_MINUS_F" == 0 ]] ; then
+        tmux list-sessions -F '#{?session_attached,,#{?session_grouped,,#{session_name}}}' 2>/dev/null | grep '+[0-9]\+$'
+    else
+        tmux list-sessions 2>/dev/null | grep '^.\+\?+[0-9]\+:' | grep -v -e '(group [[:digit:]]\+)' -e '(attached)' | cut -d: -f 1
+    fi
+}
+
+function tmx() {
+	# Tmux launcher
+	# based on https://github.com/brandur/tmux-extra/blob/master/tmx
+	
+	if [[ -n "$TMUX" ]]; then
+			echo "Inception? [ Don't run me from tmux or unset \$TMUX ]"
+			return
+	fi
+	
+	local base_session="${1:-main}"
+	
+	# Kill defunct sessions first
+	for old_session_id in `tmux-list-old-sessions` ; do
+		echo "Killing session ${old_session_id}"
+		tmux kill-session -t ${old_session_id}
+	done
+	
+	local tmux_nb=`tmux-list-sessions | grep -c "${base_session}"`
+	if [[ "${tmux_nb}" == "0" ]]; then
+		echo "Creating detached main session ${base_session}"
+		tmux new-session -d -s ${base_session}
+		# dump core
+		# prlimit -c unlimited -p $$
+		tmux new-window -n Stats -d -t ${base_session}:10 'watch -pn10 nvidia-smi --format=csv,noheader --query-gpu=temperature.gpu,fan.speed\; sensors \| sed "s/ALARM/\033[5\;31mALARM\033[0m/"\; df -h\; free -h'
+		tmux new-window -n HTOP -d -t ${base_session}:9 sudo htop
+		tmux_nb=1
+	else
+		# Find a session prefix number that hasn't already been used
+		while [[ `tmux-list-sessions | grep -c "${base_session}+${tmux_nb}"` -gt 0 ]] ; do
+			tmux_nb=`expr ${tmux_nb} - 1`
+		done
+	fi
+	
+	local session_id=${base_session}+${tmux_nb}
+	
+	#exec tmux new-session -d -t ${base_session} -s "${session_id}" \; set-option destroy-unattached \; attach-session -t "${session_id}"
+	echo "Starting session ${session_id} connected to ${base_session}"
+	tmux new-session -d -t ${base_session} -s "${session_id}"
+	if [[ -n "$TMOUT" ]]; then
+		tmux set -t "${session_id}" lock-after-time $TMOUT
+	fi
+	echo "Attaching..."
+	exec tmux attach-session -t "${session_id}" \; set -t "${session_id}" destroy-unattached on
+}
+
+function __tmux-sessions() {
+    local expl
+    local -a sessions
+    sessions=( ${${(f)"$(command tmux list-sessions 2> /dev/null)"}/:[ $'\t']##/:} )
+    _describe -t sessions 'sessions' sessions "$@"
+}
+compdef __tmux-sessions tmx

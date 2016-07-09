@@ -1,0 +1,54 @@
+KEYS_DIR=.config/zsh/zkbd
+autoload zkbd
+function zkbd_file() {
+	[[ -f ~/${KEYS_DIR}/${TERM}-${VENDOR}-${OSTYPE} ]]	&& printf '%s' ~/"${KEYS_DIR}/${TERM}-${VENDOR}-${OSTYPE}" && return 0
+	[[ -f ~/${KEYS_DIR}/${TERM}-${DISPLAY} ]]		&& printf '%s' ~/"${KEYS_DIR}/${TERM}-${DISPLAY}" && return 0
+	[[ -f ~/${KEYS_DIR}/${TERM} ]]				&& printf '%s' ~/"${KEYS_DIR}/${TERM}" && return 0
+	return 1
+}
+
+[[ ! -d ~/${KEYS_DIR} ]] && mkdir -p ~/${KEYS_DIR}
+keyfile=$(zkbd_file)
+if [[ $? -ne 0 ]]; then
+	zkbd
+	keyfile=$(zkbd_file)
+fi
+if [[ $? -eq 0 ]] ; then
+	source "${keyfile}"
+else
+	printf 'Failed to setup keys using zkbd.\n'
+fi
+unfunction zkbd_file; unset keyfile ret
+
+# load widgets we need
+autoload -U up-line-or-beginning-search
+autoload -U down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+
+autoload -U history-pattern-search
+zle -N history-pattern-search-backward history-pattern-search
+zle -N history-pattern-search-forward history-pattern-search
+
+# ^Left ^Right
+# they are not in array used below, pity...
+bindkey '[1;5D' backward-word
+bindkey '[1;5C' forward-word
+bindkey '[D' backward-word
+bindkey '[C' forward-word
+
+# setup key accordingly
+[[ -n "${key[Insert]}" ]]			&& bindkey "${key[Insert]}" overwrite-mode
+[[ -n "${key[Delete]}" ]]			&& bindkey "${key[Delete]}" delete-char
+[[ -n "${key[Home]}" ]]				&& bindkey "${key[Home]}" beginning-of-line-hist
+[[ -n "${key[End]}" ]]				&& bindkey "${key[End]}" end-of-line-hist
+[[ -n "${key[PageUp]}" ]]			&& bindkey "${key[PageUp]}" history-incremental-search-backward
+[[ -n "${key[PageDown]}" ]]			&& bindkey "${key[PageDown]}" history-incremental-search-forward
+[[ -n "${key[Up]}" ]]				&& bindkey "${key[Up]}" up-line-or-beginning-search
+[[ -n "${key[Down]}" ]]				&& bindkey "${key[Down]}" down-line-or-beginning-search
+[[ -n "${key[Left]}" ]]				&& bindkey "${key[Left]}" backward-char
+[[ -n "${key[Right]}" ]]			&& bindkey "${key[Right]}" forward-char
+
+# ctrl-s is captured by may things...
+bindkey "^F" history-incremental-search-forward
+bindkey "^Xf" history-incremental-search-forward
