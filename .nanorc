@@ -1,0 +1,16 @@
+# no hardwrapping lines
+set nowrap
+# but if we want
+set fill 72
+# no empty line at the end of file
+#set nonewlines
+# use one more line for editing
+set morespace
+# display position
+set const
+# use regexp search by default
+set regexp
+# use smooth scrolling
+set smooth
+# allow ctrl+z
+set suspend
