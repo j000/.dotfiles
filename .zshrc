@@ -8,38 +8,51 @@
 
 fpath=(~/.config/zsh/completion $fpath)
 
+# not default expand-or-complete
+bindkey '^I' expand-or-complete
+#bindkey '^I' complete-word
+
 zstyle ':completion:*' auto-description 'Specify: %d'
 zstyle ':completion:*' completer _complete _approximate _expand _ignored
-zstyle ':completion:*' format ' -  %d  - '
+zstyle ':completion:*:*:-command-:*' group-order aliases functions builtins commands
+#zstyle ':completion:*:expand:*' tag-order original expansions all-expansions
 zstyle ':completion:*' group-name ''
-zstyle ':completion:*' insert-unambiguous true
-zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
-#zstyle ':completion:*' matcher-list '' 'm:{[:lower:]}={[:upper:]}'
-zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' 'r:|[._-]=* r:|=*' 'l:|=* r:|=*'
+zstyle ':completion:*' keep-prefix true
 zstyle ':completion:*' menu select=0
 zstyle ':completion:*' original true
+zstyle ':completion:*' format ' -  %d  - '
+zstyle ':completion:*' insert-unambiguous true
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+zstyle ':completion:*' use-cache on
+
+#ignore completion functions
+zstyle ':completion:*:functions' ignored-patterns '_*'
+# ignore case, expand partial words on [._-], complete on the left side
+zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}' '+r:|[._-]=*' '+l:|=* r:|=*'
+
+# don't match what's already on the command line
+zstyle ':completion::*:*:*:(*files|directories)' ignore-line other
+# except for mv and cp, because I often want to use to similar names
+zstyle ':completion::*:(mv|cp):*:(*files|directories)' ignore-line no
+
 zstyle ':completion:*' select-prompt %SScrolling active: current selection at %p%s
 zstyle :compinstall filename '/home/j000/.zshrc'
 
 autoload -Uz compinit
 compinit
+
 #######################################
 
-zstyle ':completion:*:sudo::' environ PATH="/usr/local/sbin:/usr/sbin:/sbin${PATH:+:$PATH}" HOME="/root"
-zstyle ':completion:*:slow::' environ PATH="/usr/local/sbin:/usr/sbin:/sbin${PATH:+:$PATH}" HOME="/root"
+zstyle ':completion:*:*:(sudo|slow)::' environ PATH="/usr/local/sbin:/usr/sbin:/sbin${PATH:+:$PATH}" HOME="/root" USER="root"
 
 zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
-zstyle ':completion:*:*:kill:*' command 'ps -u $USER --forest -o pid,%cpu,cputime,cmd'
+zstyle ':completion:*:*:kill:*' command 'ps -u $USER --forest -o pid,%cpu,%mem,cmd'
 zstyle ':completion:*:*:kill:*:jobs' verbose no
 
 compdef _pids wait_on_pid
 zstyle ':completion:*:*:wait_on_pid:*:processes' list-colors '=(#b) #([0-9]#)*=0=01;31'
-zstyle ':completion:*:*:wait_on_pid:*' command 'ps -u $USER --forest -o pid,%cpu,cputime,cmd'
+zstyle ':completion:*:*:wait_on_pid:*' command 'ps -u $USER --forest -o pid,%cpu,%mem,cmd'
 zstyle ':completion:*:*:wait_on_pid:*:jobs' verbose no
-
-compdef _hub git
-
-zstyle ':completion::complete:*' use-cache 1
 
 #######################################
 
@@ -64,16 +77,27 @@ zshaddhistory () {
 }
 
 HISTFILE=~/.config/zsh/histfile
-HISTSIZE=3000
-HISTORY_SKIP='fuck|fg|bg|exit'
-HISTORY_IGNORE='man|ls|rm|cd'
+# max entries of histfile
 SAVEHIST=3000
+# max entries of internal (in memory) history
+HISTSIZE=3000
+# forget on next command
+HISTORY_SKIP='fuck|fg|bg|exit|mkdir|clear'
+# don't save to history
+HISTORY_IGNORE='man|ls|rm|cd'
+# don't replace history file, append
 setopt append_history
+# MAN: don't set this with share history
 #setopt inc_append_history
+# share history between multiple concurrent shells
 setopt share_history
+# try 'better' histfile locking
 setopt hist_fcntl_lock
+# don't split on spaces inside quotes
 setopt hist_lex_words
+# don't store history commands in histor
 setopt hist_no_store
+# give me history commands to verify
 setopt hist_verify
 setopt hist_reduce_blanks
 setopt hist_ignore_space
@@ -81,26 +105,42 @@ setopt hist_ignore_dups
 setopt hist_ignore_all_dups
 setopt hist_save_no_dups
 setopt no_hist_beep
+# if command runs longer than 10s report time
 REPORTTIME=10
+# with this format
 TIMEFMT='time:%*E  user:%U system:%S  %P cpu  memory:%Kk max:%MM  %J'
+# don't beep on errors
 setopt no_beep
+# go to directory on name
 setopt auto_cd
+# glob matches dotfiles
 setopt glob_dots
+# treat the `#', `~' and `^' differently
 setopt extended_glob
+# case-insensitive glow
+setopt no_case_glob
+# report status of jobs immediately
 setopt notify
-setopt complete_aliases
+# make the alias a distinct command for completion purposes 
+#setopt complete_aliases
+# c*<TAB> -> menu, not c*<TAB> -> c1 c2
 setopt glob_complete
+# send CONT after disown
 setopt auto_continue
+# inform on exit when there are jobs still running
 setopt check_jobs
+# don't send HUP to jobs on exiting zsh
 setopt no_hup
+# RPrompt only on current line
+setopt transientrprompt
 bindkey -e
 
 #######################################
 
-# adv key support
+# my adv key support
 local OLDZDOTDIR=$ZDOTDIR
 ZDOTDIR=~/.config/zsh
-. ~/.config/zsh/keys.adv
+. ${ZDOTDIR}/keys.adv
 ZDOTDIR=$OLDZDOTDIR
 
 #######################################
@@ -332,6 +372,8 @@ alias restart-router="curl -c ./cookies -d 'LOGIN_USER=admin' -d 'LOGIN_PASSWD='
 
 #alias makekernel='slow make silentoldconfig && slow make modules_prepare && slow make && slow emerge --ask=n @module-rebuild && slow make install && slow make modules_install && slow grub2-mkconfig -o /boot/grub/grub.cfg && echo "Done!"'
 alias eclean-kernel='sudo eclean-kernel -x initramfs'
+
+alias g=hub
 
 eval "$(hub alias -s)"
 eval "$(thefuck --alias)"
